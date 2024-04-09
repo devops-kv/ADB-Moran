@@ -1,0 +1,7 @@
+print("hello cdm traansform")
+print("hello kapil")
+print("hello kapil varshney")
+print("hello manish gupta")
+print("hello atlanta")
+print("hello usa")
+print("india")
