@@ -53,3 +53,11 @@ stages:
         - powershell: |
             tree "$(System.DefaultWorkingDirectory)" /F
           displayName: 'Treeview of System.DefaultWorkingDirectory'
+        - task: configuredatabricks@0
+          inputs:
+            url: 'https://adb-3956781089307435.15.azuredatabricks.net/'
+            token: 'dapi6d79968d8b499dba5a52df0121b103f0-3'
+        - task: deploynotebooks@0
+          inputs:
+            notebooksFolderPath: '$(System.DefaultWorkingDirectory)/databricks'
+            workspaceFolder: '/DataEngineering'
