@@ -23,147 +23,35 @@ pool:
 #########################
 
 stages:
-  - stage: Build_ADB
-    condition: eq(variables.isDev, true)
-    displayName: Building databricks notebook Artifact in Dev 
+  - stage: ADB_Build
+    displayName: Building Databricks Notebook Artifact
     jobs:
-      
       - job: Creating
-        displayName: "Creating Artifact in Dev"
-        
-
+        displayName: "Creating Artifact"
         steps:
-
-          - task: UniversalPackages@0
-            #condition: eq(variables.isDev, true)
-            displayName: "Publishing to AzDO Artifacts in Dev"
+          - task: CopyFiles@2
             inputs:
-             command: publish
-             publishDirectory: '$(publishDirectory)'
-             vstsFeedPublish: 'Azure-Data-Enterprise-Platform/$(feedname-qa)'
-             vstsFeedPackagePublish: '$(feedname-qa)'
-             packagePublishDescription: 'Databricks notebooks in QA'
-             verbosity: 'Debug'
-
-
-
-
-
-###################
-#RELEASE STAGE in QA Env
-###################  
-
-  - stage: ADB_QA_Release
-    displayName: Deploying databricks notebook in QA
-    dependsOn: Build_ADB
-    #condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
-    condition: succeeded('Build_ADB')
-    jobs:
-      - job:
-        displayName: "Deploying to QA"
-
-        # environment: daa-dev
-        # strategy:
-        #   runOnce:
-        #     deploy:
-        steps:
-          - task: UniversalPackages@0
-            displayName: 'Downloading latest Databricks Artifact'
+              SourceFolder: '$(System.DefaultWorkingDirectory)/notebooks'
+              Contents: '**'
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
+            displayName: 'Copy Databricks Notebooks to Artifact Staging Directory'
+          - task: PublishPipelineArtifact@1
             inputs:
-              command: 'download'
-              vstsFeed: 'Azure-Data-Enterprise-Platform/$(feedname-qa)'
-              vstsFeedPackage: '$(feedname-qa)'
-              vstsPackageVersion: '*'
-              downloadDirectory: '$(Build.SourcesDirectory)/$(publishDirectory)'
-              verbosity: 'Debug'
-          - powershell: |
-              tree "$(Build.SourcesDirectory)/$(publishDirectory)" /F
-            displayName: 'Treeview of Build.SourcesDirectory'
-          
-          # - task: AzureKeyVault@1
-          #   inputs:
-          #     ConnectedServiceName: '$(ConnectedServiceName)'
-          #     #azureSubscription: 'Microsoft Azure Enterprise BigDataAI'
-          #     KeyVaultName: '$(keyvaultname)'
-          #     SecretsFilter: '*'
-          #     runAsPreJob: false
-          - task: databricksDeployScripts@0
-            inputs:
-              authMethod: 'bearer'
-              bearerToken: 'dapiec1285f2d7e2953d083d31c22ada36fb-3'
-              region: '$(region)'
-              #localPath: '$(Pipeline.Workspace)/ADB_Artifact/src'
-              localPath: '$(Build.SourcesDirectory)/$(publishDirectory)'
-              databricksPath: '/notebook'
-              clean: true        
-
-
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: 'databricks'
+              publishLocation: 'pipeline'
+            displayName: 'Publish Artifacts: databricks'
   
-  - stage:  Approve_Deployment_Prod
-    displayName: Approval to Deploy to PROD Stage
-    dependsOn: ADB_QA_Release
-    condition: succeeded('ADB_QA_Release')
+  - stage: ADB_Release
+    dependsOn: ADB_Build
+    condition: succeeded('ADB_Build')
+    displayName: Deploying Databricks Notebook in Dev
     jobs:
-    - job: waitForValidation
-      displayName: Wait for external validation
-      pool: server
-      timeoutInMinutes: 4320 # job times out in 3 days
-      steps:
-        - task: ManualValidation@0
-          timeoutInMinutes: 4320 # task times out in 3 days
-          inputs:
-           notifyUsers: |
-            $(notifyUsers)
-           instructions: 'Please validate the PROD build configuration'
-           onTimeout: 'reject'
-
-
-
-###################
-#RELEASE STAGE in Prod Env
-###################  
-
-  - stage: ADB_DEV_Release
-    displayName: Deploying databricks notebook in Prod
-    dependsOn: Approve_Deployment_Prod
-    # condition: and(succeeded('Approve_Deployment_Prod'),succeeded('Build_ADF_Prod'))
-    condition: succeeded('Approve_Deployment_Prod')
-    jobs:
-      - job:
-        displayName: "Deploying to Prod"
-        pool:
-          vmImage: 'windows-latest'
-        # environment: daa-dev
-        # strategy:
-        #   runOnce:
-        #     deploy:
+      - job: Deploying
+        displayName: 'Deploying the Notebooks'
         steps:
-          - task: UniversalPackages@0
-            displayName: 'Downloading latest Databricks Artifact'
-            inputs:
-              command: 'download'
-              vstsFeed: 'Azure-Data-Enterprise-Platform/$(feedname-qa)'
-              vstsFeedPackage: '$(feedname-qa)'
-              vstsPackageVersion: '*'
-              downloadDirectory: '$(Build.SourcesDirectory)/$(publishDirectory)'
-              verbosity: 'Debug'
-          - powershell: |
-              tree "$(Build.SourcesDirectory)/$(publishDirectory)" /F
-            displayName: 'Treeview of Build.SourcesDirectory'
-          
-          # - task: AzureKeyVault@1
-          #   inputs:
-          #     ConnectedServiceName: '$(ConnectedServiceName)'
-          #     #azureSubscription: 'Microsoft Azure Enterprise BigDataAI'
-          #     KeyVaultName: '$(keyvaultname)'
-          #     SecretsFilter: '*'
-          #     runAsPreJob: false
-          - task: databricksDeployScripts@0
-            inputs:
-              authMethod: 'bearer'
-              bearerToken: 'dapi00c2e28a929a83abdbbb415ccbff67b0-3'
-              region: '$(region)'
-              #localPath: '$(Pipeline.Workspace)/ADB_Artifact/src'
-              localPath: '$(Build.SourcesDirectory)/$(publishDirectory)'
-              databricksPath: '/notebook'
-              clean: true 
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            targetPath: '$(System.DefaultWorkingDirectory)'
+          displayName: 'Download Build Artifact'
