@@ -10,11 +10,6 @@ trigger:
     exclude:
     - 'azure-pipelines.yml'
 
-variables:
-- group: dep-adb-demo
-- name: isDev
-  value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
-
 pool:
   vmImage: 'windows-latest'
 
@@ -55,3 +50,6 @@ stages:
             buildType: 'current'
             targetPath: '$(System.DefaultWorkingDirectory)'
           displayName: 'Download Build Artifact'
+        - powershell: |
+            tree "$(System.DefaultWorkingDirectory)" /F
+          displayName: 'Treeview of System.DefaultWorkingDirectory'
