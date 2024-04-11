@@ -1,0 +1,7 @@
+print("rajasthan")
+print("rajasthan")
+print("rajasthan")
+print("rajasthan")
+print("rajasthan")
+print("rajasthan")
+print("rajasthan")
